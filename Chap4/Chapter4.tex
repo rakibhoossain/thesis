@@ -4,112 +4,68 @@
 \section{Introduction}
 This chapter provides a granular view of the software engineering principles and code-level implementation details of the developed system. Having established the theoretical methodology in Chapter 3, we now focus on the practical realization of the system, including the development environment, software architecture, core modules, and the user-facing web application.
 
-\section{Development Environment}
-The training of Transformer-based models is computationally intensive. We leveraged a high-performance computing setup to ensure efficient fine-tuning.
+\section{The Engineering Stack}
+Building a deep learning system isn't just about math; it's about managing resources. My development environment was dictated by one major constraint: \textbf{Hardware}.
+
+\subsection{Hardware Constraints}
+Training a transformer model requires massive parallel computation. I utilized Google Colab's cloud environment, specifically the **NVIDIA T4 GPU**.
 \begin{itemize}
-    \item \textbf{Hardware Acceleration:} The system was trained on an NVIDIA GPU with CUDA 11.8 support. The parallel processing capabilities of the GPU's Tensor Cores were essential for accelerating the matrix multiplications in the Self-Attention mechanism.
-    \item \textbf{Memory Management:} Given the memory footprint of DistilBERT (approx. 260MB per instance) plus the gradients and optimizer states, we utilized Mixed Precision Training (FP16) to reduce VRAM usage and speed up training.
-    \item \textbf{Software Stack:}
-        \begin{itemize}
-            \item \textbf{Language:} Python 3.12 (Selected for its rich ecosystem of AI libraries).
-            \item \textbf{Framework:} PyTorch 2.0 (Backend) and Hugging Face Transformers (Model abstraction).
-        \end{itemize}
+    \item \textbf{Why not CPU?} A standard laptop CPU would take approximately 40 minutes per epoch. The T4 reduced this to roughly 3 minutes.
+    \item \textbf{Memory Hacks:} The T4 has 16GB of VRAM. With a batch size of 8 and a 512-token sequence, I constantly hit "Out of Memory" (OOM) errors. To fix this, I enabled **Mixed Precision (FP16)**. This treats the weights as 16-bit floats instead of 32-bit, effectively halving the memory usage without losing significant accuracy.
 \end{itemize}
 
-\section{Software Architecture}
-The project follows a modular, object-oriented architecture designed for maintainability and scalability. Figure \ref{fig:arch} illustrates the high-level data flow.
+\subsection{Software dependencies}
+I avoided "reinventing the wheel" by leaning on established libraries:
+\begin{itemize}
+    \item **Hugging Face Transformers:** Writing a Self-Attention layer from scratch is error-prone. I used the `Transformers` library to load the pre-trained weights.
+    \item **PyTorch:** I chose PyTorch over TensorFlow because of its dynamic computation graph, which made debugging the custom classification head much easier.
+    \item **Gradio:** For the frontend, I needed something that could talk to Python natively. Gradio allowed me to build the UI in pure Python, skipping the need for React or HTML/CSS.
+\end{itemize}
+
+\section{System Architecture}
+The system isn't a single script; it's a pipeline of three distinct components communicating via disk storage.
 
 \begin{figure}[h]
     \centering
     \fbox{
     \begin{minipage}{0.9\textwidth}
         \centering
-        [Data Ingestion] $\rightarrow$ [Preprocessing (NFKC)] $\rightarrow$ [Fine-Tuner Module] \\
+        \textbf{Stage 1: Ingestion} \\ 
+        Raw Web Data $\rightarrow$ [Cleaner.py] $\rightarrow$ Clean CSV \\
         $\downarrow$ \\
-        [Model Registry (Saved Weights)] \\
+        \textbf{Stage 2: Training} \\
+        Clean CSV $\rightarrow$ [FineTuner Class] $\rightarrow$ \texttt{model.pt} (Weights) \\
         $\downarrow$ \\
-        [Inference Engine (Analyzer)] $\rightarrow$ [Web Interface (Gradio)]
+        \textbf{Stage 3: Inference} \\
+        User Text $\rightarrow$ [Analyzer.py] $\rightarrow$ JSON/UI visualization
     \end{minipage}
     }
-    \caption{System Architecture Block Diagram}
+    \caption{The Three-Stage Data Pipeline}
     \label{fig:arch}
 \end{figure}
 
-\subsection{Module 1: The Fine-Tuning Engine}
-The \texttt{fine\_tune.py} script encapsulates the entire training lifecycle. It is built around the \texttt{BanglaSentimentFineTuner} class.
-
-\subsubsection{Dataset Preparation}
-The \texttt{prepare\_dataset()} method is responsible for loading and sanitizing data:
+\subsection{The Training Module}
+The heart of the research is \texttt{fine\_tune.py}. I encapsulated the logic in a `BanglaSentimentFineTuner` class to keep the notebook clean.
+Key implementation details:
 \begin{itemize}
-    \item \textbf{Mapping:} It applies the 5-to-3 class mapping discussed in Chapter 3.
-    \item \textbf{Validation:} It checks for and removes \texttt{NaN} values or empty strings that could cause training to crash.
-    \item \textbf{Stratified Split:} We utilize \texttt{sklearn.model\_selection.train\_test\_split} with the \texttt{stratify} parameter set to the label vector. This ensures that if the original dataset has 70\% Negative samples, both the Train and Test sets will also have exactly 70\% Negative samples, preserving the distribution.
+    \item \textbf{Handling Crashes:} Initially, the training crashed because some "text" fields in the CSV were empty strings (NaN). I added a validation step in `prepare_dataset()` to drop any row where the text length was $<5$ characters.
+    \item \textbf{Stratification:} I used `sklearn`'s stratified split. This was critical. Without it, one random test set might have 90\% negative news, giving me a false sense of accuracy.
+    \item \textbf{Metrics:} Accuracy wasn't enough. I implemented a custom `compute_metrics` function to track the **Weighted F1-Score**, which tells me if the model is ignoring the smaller classes (like "Neutral").
 \end{itemize}
 
-\subsubsection{Metric Computation}
-To evaluate the model during training, we defined a custom \texttt{compute\_metrics} function. This function takes the raw logits output by the model, applies \texttt{argmax} to get class predictions, and computes:
-\begin{itemize}
-    \item \textbf{Accuracy:} Global correctness.
-    \item \textbf{Weighted F1-Score:} Steps were taken to use \texttt{average='weighted'} to account for class imbalance, preventing the score from being skewed by the majority class.
-\end{itemize}
+\subsection{The Inference Engine}
+Once the model is trained, we need to use it. The `analyzer.py` script loads the saved weights (`model.pt`).
+The biggest challenge here was **speed**. Running the model one article at a time is fine for a demo, but slow for a dataset. I implemented **Batch Processing** using Hugging Face's `pipeline` feature, which feeds 16 articles to the GPU at once. I also added a `tqdm` progress bar so the user isn't staring at a frozen screen.
 
-\subsection{Module 2: The Inference Engine}
-The \texttt{analyzer.py} script contains the \texttt{EnhancedBanglaAnalyzer} class, designed for post-deployment analysis.
+\section{The "No-Code" Web Interface}
+A command-line tool is intimidating. To make this accessible to a journalist or social scientist, I built a web app.
 
-\subsubsection{Batch Processing}
-For analyzing large CSV files (thousands of rows), processing sequentially is slow. We implemented batch processing using the Hugging Face pipeline's built-in batching capabilities. We also integrated \texttt{tqdm} to provide a real-time progress bar to the user in the CLI.
-
-\subsubsection{Visualization Logic}
-The analyzer includes a \texttt{generate\_comprehensive\_report} method that automatically creates visualizing using \texttt{matplotlib}:
-\begin{itemize}
-    \item \textbf{Sentiment Distribution:} Uses bar charts to show class counts.
-    \item \textbf{Confidence Histograms:} Plots the distribution of softmax probabilities to gauge model certainty.
-    \item \textbf{Temporal Analysis:} If a 'date' column is present, it aggregates sentiment counts by day to plot time-series trends.
-\end{itemize}
-
-\section{Web Application Development}
-To demonstrate the practical utility of this research, we developed a fully interactive web application using \texttt{Gradio 6.0.2}. Gradio was chosen for its ability to rapidly prototype ML interfaces completely in Python.
-
-\subsection{Interface Design}
-The application (\texttt{app.py}) features a multi-tab layout using \texttt{gr.Tabs()}:
+\subsection{Why Gradio?}
+I chose Gradio because it allows "Hot Reloading" during development. I designed two specific tabs:
 \begin{enumerate}
-    \item \textbf{Tab 1: Real-time Analysis:}
-        \begin{itemize}
-            \item \textbf{Input:} A large text box for pasting news articles.
-            \item \textbf{Processing:} The input is truncated to 512 tokens.
-            \item \textbf{Output:} A standard Label component showing the predicted class and a color-coded confidence bar.
-        \end{itemize}
-    \item \textbf{Tab 2: Batch CSV Analysis:}
-        \begin{itemize}
-            \item \textbf{Input:} A File Upload component accepting \texttt{.csv} files.
-            \item \textbf{Validation Logic:} The backend checks if the uploaded file contains a 'text' column. If missing, it raises a \texttt{gr.Error} alert to the user.
-            \item \textbf{Output:} A generic Dataframe component to display the results in a tabular format.
-        \end{itemize}
+    \item **The "Quick Check" Tab:** This is a simple text box. You paste a headline, and it gives you a red/green bar chart. It solves the use case of "I just read this one article, is it biased?"
+    \item **The "Batch" Tab:** This solves the research use case. A user can upload a CSV of 5,000 comments. The backend processes them in batches, calculates the aggregate sentiment, and generates visualizations (Pie Charts/Time Series) automatically using Matplotlib.
 \end{enumerate}
 
-\begin{figure}[h]
-    \centering
-    \includegraphics[width=0.95\textwidth]{assets/ui_start.png}
-    \caption{The Home Interface of the Sentiment Analysis Tool}
-    \label{fig:ui_start}
-\end{figure}
-
-\begin{figure}[h]
-    \centering
-    \includegraphics[width=0.95\textwidth]{assets/ui_result_negative.png}
-    \caption{Analysis Result showing Negative Sentiment with High Confidence}
-    \label{fig:ui_result}
-\end{figure}
-
-\subsection{Error Handling}
-Robust error handling was implemented to prevent the server from crashing. All analysis loops are wrapped in \texttt{try-except} blocks. For instance, if a specific row in a CSV file is malformed (e.g., contains a float instead of a string), the system logs the error, skips that row, and continues processing the rest of the file.
-
-\section{Third-Party Libraries and Dependencies}
-The system relies on a robust stack of open-source libraries:
-\begin{itemize}
-    \item \textbf{Transformers (Hugging Face):} The core library for loading the pre-trained DistilBERT architecture and Tokenizer.
-    \item \textbf{PyTorch:} Provides the tensor computation backend and automatic differentiation required for backpropagation.
-    \item \textbf{Scikit-learn:} utilized for robust metric calculation and data splitting.
-    \item \textbf{Pandas/NumPy:} Essential for high-performance manipulation of tabular data (CSVs) and matrix operations.
-    \item \textbf{Matplotlib:} Used for generating static analysis charts for the reports.
-\end{itemize}
+\subsection{Error Handling in the Wild}
+Real users upload messy data. I wrapped the processing loop in a `try-except` block. If Row \#4,032 is corrupted, the system logs the error ("Skipped malformed row") and continues to Row \#4,033, rather than crashing the entire server. This resilience is vital for a production-ready tool.

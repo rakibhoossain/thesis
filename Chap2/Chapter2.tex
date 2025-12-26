@@ -4,75 +4,61 @@
 \section{Introduction}
 This chapter provides the theoretical foundation necessary to understand the proposed sentiment analysis system. We begin by tracing the historical evolution of sentiment analysis, from early rule-based systems to the modern era of Deep Learning. We then provide an in-depth mathematical explanation of the Transformer architecture, which forms the backbone of our model. Finally, we critically review the state-of-the-art research in Bengali sentiment analysis, highlighting the specific gaps this thesis aims to address.
 
-\section{Evolution of Sentiment Analysis}
-The field of sentiment analysis has undergone three distinct evolutionary phases: the Lexicon-based era, the Statistical Machine Learning era, and the current Deep Learning era.
+\section{The Evolution of Sentiment Analysis}
+It is helpful to think of sentiment analysis not as a single technology, but as a story of three acts. Each act solved a specific problem but created a new one.
 
-\subsection{Lexicon-Based Approaches}
-Early work in determining sentiment polarity was largely unsupervised and relied on sentiment lexicons. A lexicon is a dictionary where words are associated with a sentiment score (e.g., +1 for positive, -1 for negative).
+\subsection{Act I: The Dictionary Era}
+In the early days, we treated sentiment as a simple accounting problem. If a sentence had more "positive" words than "negative" ones, it was positive. 
 \begin{itemize}
-    \item \textbf{Dictionary-based Methods:} Researchers would start with a small seed list of adjectives and expand it using synonyms and antonyms from a thesaurus like WordNet. Hutto and Gilbert \cite{hutto2014vader} introduced VADER, a rule-based model popular for social media text.
-    \item \textbf{Limitations:} These methods suffer from a lack of context awareness. For example, "The movie was unpredictable" could be positive for a thriller but negative for a car handling review. Furthermore, in Bengali, researchers often created dictionaries by translating English lexicons, which fails to capture language-specific idioms (e.g., "মাথামুন্ডু" literally means "head-head" but implies "nonsense").
-    \item \textbf{Negation Handling:} A major failure point is negation. A simple bag-of-words model usually treats "I do not like this" as positive due to the word "like", necessitating complex rules to handle "not".
+    \item \textbf{The Approach:} Researchers built lexicons—massive lists where "good" = +1 and "bad" = -1. Tools like VADER \cite{hutto2014vader} became staples.
+    \item \textbf{The Failure Point:} Language is rarely so binary. In Bengali, this approach collapsed entirely. Why? because many researchers simply translated English dictionaries into Bengali. A phrase like ``মাথামুন্ডু'' (Mathamundu) literally translates to "Head-Head," which sounds neutral. But to any Bengali speaker, it screams "Nonsense" (negative). Dictionaries couldn't capture this cultural context.
 \end{itemize}
 
-\subsection{Statistical Machine Learning Era}
-To overcome the rigidity of rules, researchers turned to supervised statistical learning. This treated sentiment analysis as a standard text classification problem.
+\subsection{Act II: The Statistical Era}
+Realizing that words change meaning based on neighbors, the field moved to Machine Learning.
 \begin{itemize}
-    \item \textbf{Algorithms:} Support Vector Machines (SVM), Naive Bayes (NB), and Maximum Entropy (MaxEnt) became the standard. Pang et al. (2002) famously showed that ML classifiers outperformed human-curated baselines.
-    \item \textbf{Feature Engineering:} Success depended heavily on manual feature extraction:
-        \begin{itemize}
-            \item \textit{N-grams:} Using sequences of words (bi-grams, tri-grams) to capture local context.
-            \item \textit{TF-IDF:} Weighing terms to downplay common stopwords and highlight discriminative words.
-        \end{itemize}
-    \item \textbf{Limitations for Bengali:} Islam et al. \cite{islam2020bangla} applied these methods to Bengali news headlines. However, due to Bengali's high inflection, the vocabulary size explodes (curse of dimensionality), leading to sparse data matrices and poor generalization.
+    \item \textbf{The Approach:} We started feeding texts into algorithms like Support Vector Machines (SVM). Instead of predefined lists, the model "learned" that the word "slow" is bad in a laptop review but might be good in a generic "slow cooking" context.
+    \item \textbf{The Failure Point:} These models were "shallow." They relied on us humans to tell them what to look for (Feature Engineering). For an inflected language like Bengali, this was a nightmare. A verb like "cor" (do) has dozens of variations. To an SVM, "cor" and "corchi" (doing) look like two completely unrelated words. The datasets grew too sparse to be useful (the "Curse of Dimensionality").
 \end{itemize}
 
-\subsection{Deep Learning and Word Embeddings}
-Deep Learning removed the need for manual feature engineering. Models like Recurrent Neural Networks (RNNs) and Long Short-Term Memory (LSTM) networks processes text as a sequence, maintaining a hidden state that theoretically captures the history of the entire sentence.
+\subsection{Act III: The Deep Learning Era (Current)}
+The current era began when we stopped telling computers \textit{how} to read and started letting them learn representations.
 \begin{itemize}
-    \item \textbf{Word2Vec and GloVe:} Representing words as dense vectors where semantically similar words are close in vector space allowed models to understand that "good" and "great" are similar.
-    \item \textbf{Limitations of RNNs:} While LSTMs solved the vanishing gradient problem to some extent, they are inherently sequential ($O(N)$ time complexity). This precludes parallelization, making training on massive datasets slow. Furthermore, they struggle with reliable long-range dependencies (e.g., relating the first word of a paragraph to the last).
+    \item \textbf{The Shift:} Word Embeddings (like Word2Vec) allowed computers to understand that "King" - "Man" + "Woman" $\approx$ "Queen." 
+    \item \textbf{The Limitation:} Even early Deep Learning (RNNs/LSTMs) had a flaw: they read sequentially, one word at a time. They would often "forget" the start of a long paragraph by the time they reached the end. This sequential processing also made them painfully slow to train.
 \end{itemize}
 
-\section{The Transformer Revolution}
-The introduction of the Transformer architecture by Vaswani et al. \cite{vaswani2017attention} in the seminal paper "Attention is All You Need" marked a paradigm shift in NLP. Unlike RNNs, Transformers process the entire sequence of input simultaneously (parallelization), relying entirely on an attention mechanism to draw global dependencies between input and output.
+\section{The Transformer: A Paradigm Shift}
+In 2017, Vaswani et al. \cite{vaswani2017attention} proposed a radical idea: \textit{what if we stopped reading sentences left-to-right and read everything at once?} This was the birth of the Transformer.
 
-\subsection{Self-Attention Mechanism}
-The core innovation is ``Self-Attention'', which allows the model to weigh the importance of different words in a sentence relative to a specific word.
-Mathematically, for an input embedding matrix $X$, we learn three weight matrices $W^Q, W^K, W^V$ to produce three projections: Query ($Q$), Key ($K$), and Value ($V$).
-\begin{equation}
-    Q = XW^Q, \quad K = XW^K, \quad V = XW^V
-\end{equation}
+\subsection{The "Spotlight" Mechanism (Self-Attention)}
+The core breakthrough was ``Self-Attention.'' Imagine you are reading a complex sentence. When you see the word "bank," you don't know if it means a river bank or a financial bank until you look at the other words in the sentence (like "money" or "water"). 
 
-The attention score is calculated by the scaled dot-product of queries and keys:
+Self-Attention acts like a spotlight. For every word, it scans the entire sentence to see which \textit{other} words shed light on its meaning.
+
+Mathematically, this is implemented using three vectors for every word: a \textbf{Query} ($Q$), a \textbf{Key} ($K$), and a \textbf{Value} ($V$). Think of it like a library filing system:
+\begin{itemize}
+    \item \textbf{Query ($Q$):} What I am looking for? (e.g., "I am the word 'bank', what defines me?")
+    \item \textbf{Key ($K$):} The label on the folder.
+    \item \textbf{Value ($V$):} The actual content inside the folder.
+\end{itemize}
+
+The model calculates a score to decide how much "Attention" the Query should pay to the Key:
 \begin{equation}
     \text{Attention}(Q, K, V) = \text{softmax}\left(\frac{QK^T}{\sqrt{d_k}}\right)V
 \end{equation}
 
-Where:
-\begin{itemize}
-    \item The dot product $QK^T$ measures similarity between a query (word seeking context) and a key (word offering context).
-    \item Division by $\sqrt{d_k}$ (dimension of keys) prevents the dot products from growing too large, which would push the softmax function into regions with extremely small gradients.
-    \item The softmax normalizes scores to a probability distribution summing to 1.
-    \item Multiplying by $V$ creates a weighted sum of the values, highlighting relevant information.
-\end{itemize}
+If the dot product ($QK^T$) is high, the "Spotlight" shines brightly on that connection. The $\sqrt{d_k}$ term is simply a scaling factor to keep the math stable.
 
-\subsection{Multi-Head Attention}
-To capture different types of relationships (e.g., syntactic vs. semantic), the Transformer runs multiple self-attention mechanisms in parallel, called "heads".
-\begin{equation}
-    \text{MultiHead}(Q, K, V) = \text{Concat}(\text{head}_1, ..., \text{head}_h)W^O
-\end{equation}
-where $\text{head}_i = \text{Attention}(QW_i^Q, KW_i^K, VW_i^V)$. This allows the model to jointly attend to information from different representation subspaces at different positions.
+\subsection{Why Multiple Heads?}
+One spotlight isn't enough. A word might need to focus on grammar ("is it a verb?") and semantic meaning ("is it happy?") simultaneously. This is where \textbf{Multi-Head Attention} comes in. It runs several attention layers in parallel, allowing the model to "look" at the sentence from multiple perspectives at once.
 
-\subsection{Positional Encoding}
-Since the Transformer contains no recurrence and no convolution, it has no inherent sense of order/sequence. To address this, "Positional Encodings" are added to the input embeddings. These are calculated using sine and cosine functions of different frequencies:
+\subsection{Positional Encoding: Adding Order to Chaos}
+Because the Transformer reads the whole sentence instantly (in parallel), it technically doesn't know that word \#1 comes before word \#2. To fix this, we inject \textbf{Positional Encodings}—mathematical timestamps (using Sine and Cosine waves)—so the model knows the order of words.
 \begin{equation}
     PE_{(pos, 2i)} = \sin(pos / 10000^{2i/d_{model}})
 \end{equation}
-\begin{equation}
-    PE_{(pos, 2i+1)} = \cos(pos / 10000^{2i/d_{model}})
-\end{equation}
-This allows the model to learn relative positions, crucial for understanding sentence structure (e.g., distinguishing "Dog bites Man" from "Man bites Dog").
+Without this, "The dog bit the man" and "The man bit the dog" would look identical to the model.
 
 \section{Masked Language Models: BERT and DistilBERT}
 \subsection{BERT (Bidirectional Encoder Representations from Transformers)}
@@ -89,26 +75,25 @@ While BERT achieved state-of-the-art results, it is computationally expensive (1
 \end{equation}
 DistilBERT retains 97\% of BERT's performance while being 40\% smaller and 60\% faster, making it ideal for deployment in resource-constrained environments like ours.
 
-\section{Related Work in Bengali Sentiment Analysis (2020-2025)}
-Recent years have seen a surge in NLP research for Bengali, though significant gaps remain.
+\section{The Landscape of Bengali Sentiment Analysis}
+Research in Bengali NLP has often felt like playing catch-up with English. Reviewing the works from 2020-2025 reveals a pattern of promising starts but consistent limitations.
 
-\subsection{Early Machine Learning Approaches}
-Hassan et al. (2016) used SVM and Random Forests on a small dataset of Bengali movie reviews. They achieved 80\% accuracy but relied heavily on unigrams and handcrafted negation rules.
-Das and Bandyopadhyay (2020) focused on social media comments, employing an LSTM network. While they improved over classical ML, their model struggled with the formal language of news editorials.
+\subsection{The "Hybrid" Trap}
+A common trend has been to combine old and new methods. Rahman et al. (2024) \cite{rahman2024enhancing} proposed a "Hybrid" model that used VADER rules to "correct" a BanglaBERT model. Their hypothesis was that domain rules could fix deep learning errors. While innovative, their dataset was tiny ($<$5,000 samples). In my view, this approach patches a symptom rather than curing the disease—if the underlying model is trained on enough data, it shouldn't need manual rule-based corrections.
 
-\subsection{Recent Transformer-based Research (2024-2025)}
+\subsection{The Data Fragmentation Problem}
+The biggest hurdle isn't the model; it's the data.
 \begin{itemize}
-    \item \textbf{Hybrid Approaches:} Rahman et al. (2024) \cite{rahman2024enhancing} proposed a hybrid model combining VADER-like rules with BanglaBERT. They argued that domain-specific rules could fix Transformer errors. However, their dataset was limited to 5,000 samples.
-    \item \textbf{New Datasets:} Khan et al. (2024) \cite{khan2024bangla} released "BanglaSenti", a dataset of 35,000 sentences. Crucially, this dataset is composed of short sentences from Facebook comments, lacking the complexity of full-length articles.
-    \item \textbf{Contextual Embeddings:} Islam et al. (2024) \cite{islam2024bangdsa} introduced \textit{skipBangla-BERT}, utilizing skip-gram techniques to improve document-level coherence. Their work showed promise but was not released as an open-source tool.
+    \item **Informal Focus:** Khan et al. \cite{khan2024bangla} released "BanglaSenti" (35k samples). It's a great dataset, but it's scraped from Facebook comments. A model trained on comments like "fatafati" (awesome) fails when reading a formal editorial about inflation.
+    \item **Closed Doors:** Some promising works, like the \textit{skipBangla-BERT} by Islam et al. \cite{islam2024bangdsa}, claim high accuracy but never released their code or data. Science that isn't reproducible is of limited use to the community.
 \end{itemize}
 
-\subsection{Research Gap Analysis}
-Based on the review, we identify the following critical gaps:
+\subsection{Gap Analysis: What's Missing?}
+This thesis exists because of three specific holes in the current literature:
 \begin{enumerate}
-    \item \textbf{Dataset Size and Type:} Most existing datasets are small (<10k) and informal (social media). There is no large-scale (>50k) dataset for \textit{formal news articles}.
-    \item \textbf{End-to-End Systems:} Most research focuses on the model architecture but stops short of deploying a usable tool. There is a lack of accessible interfaces for non-technical users (journalists/analysts) to use these models.
-    \item \textbf{Efficiency:} Many proposed models (e.g., XLM-RoBERTa Large) are too heavy for practical inference on standard servers.
+    \item \textbf{No Formal News Dataset:} There is no open-source dataset of 50k+ \textit{formal, full-length} Bengali news articles labeled for sentiment.
+    \item \textbf{Usability Gap:} Researchers build models but rarely build tools. A Graph in a PDF doesn't help a journalist; a web-app does.
+    \item \textbf{Efficiency:} Most benchmarks use "Large" models that require expensive GPUs. We need models that work on standard hardware.
 \end{enumerate}
 
 This thesis directly targets these gaps by creating a large-scale news dataset (70k+), fine-tuning a lightweight yet powerful model (DistilBERT), and deploying a full web-based analysis suite.

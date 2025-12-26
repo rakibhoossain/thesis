@@ -2,75 +2,59 @@
 \label{chap:Intro}
 
 \section{Background and Motivation}
-Sentiment analysis, also known as opinion mining, is a pivotal sub-domain of Natural Language Processing (NLP) that deals with the computational identification, extraction, and categorization of opinions, sentiments, and emotions expressed in text. It has evolved from a simple binary classification task to a complex field capable of understanding sarcasm, irony, and context-dependent sentiments. In the era of digital information, the volume of news and social media content has exploded, making manual monitoring impossible. Every second, millions of data points are generated across various platforms, necessitating automated systems to process and interpret this vast amount of information.
+We live in an era where news travels faster than it can be verified. For a country like Bangladesh, with over 180 million people, the digital news ecosystem is chaotic, vibrant, and overwhelming. Every day, thousands of articles are published online—ranging from political shifting tides to local economic crises. Manually tracking this deluge of information is no longer possible. 
 
-For a developing nation like Bangladesh, analyzing the sentiment of news media is not merely a technical challenge but a necessity for understanding the socio-political landscape. News media serves as a mirror to society, reflecting public reaction to government policies, monitoring social unrest, and highlighting economic trends. An automated system capable of gauging the sentiment of news articles can provide invaluable insights to policymakers, journalists, and social scientists. For instance, tracking the sentiment trends regarding a new educational policy can help the government gauge public acceptance or resistance early on. Similarly, monitoring reports on price hikes or commodity shortages can serve as an early warning system for potential economic instability.
+I undertook this research because I saw a disconnect. While English NLP models like GPT-4 can detect subtle sarcasm in a New York Times op-ed, Bengali tools often fail to distinguish between a political critique and a simple report. This gap is not just academic; it has real-world consequences. A sudden spike in negative news about commodity prices, for instance, serves as an early warning for economic instability, but only if we can detect it in real-time.
 
-While English NLP has reached near-human performance with the advent of Large Language Models (LLMs) like GPT-4 and Llama, low-resource languages like Bengali (Bangla) lag significantly behind. Bengali is the seventh most spoken language globally, with over 230 million native speakers spread across Bangladesh and India. Despite this massive demographic, it remains under-represented in the digital NLP landscape. The challenges are manifold:
-\begin{enumerate}
-    \item \textbf{Morphological Richness:} Bengali is a highly inflected language. A single root word can have dozens of variations based on tense, person, case, and gender. For example, the root word "কর" (do) can manifest as "করছি" (doing), "করেছিলাম" (did), "করব" (will do), "করাচ্ছে" (making someone do), and so on. This morphological complexity leads to a sparse data problem, where many valid word forms may not appear in the training data.
-    \item \textbf{Complex Orthography:} The Bengali script uses abugidas, where vowels are often written as diacritics attached to consonants. It also features numerous conjunct characters (juktakkhor), which pose challenges for tokenization and character-level encoding.
-    \item \textbf{Resource Scarcity:} There is a severe lack of large-scale, annotated datasets for specific domains like formal news. Most available datasets are small ($\approx$ 5-10k samples) or focus on informal social media comments, which differ significantly in grammar and vocabulary from formal news reportage \cite{sarker2021benchmarking}.
-    \item \textbf{Diglossia:} Bengali exhibits a strong diglossia, meaning there is a significant difference between the formal written language (Sadhu/Cholitobhasha) used in news and the informal spoken dialects. Models trained on casual social media text often fail to generalize to the formal register of news articles.
-\end{enumerate}
-
-This thesis addresses these gaps by developing a robust, end-to-end sentiment analysis system specifically tailored for Bengali news articles. By leveraging state-of-the-art multilingual transformer models and fine-tuning them on a newly curated, large-scale dataset, this research aims to bridge the performance gap between English and Bengali NLP.
+My motivation stems from the linguistic "messiness" of Bengali. It is a language where a single verb root like ``কর'' (do) can morph into ``করেছিলাম'' (I did), ``করছি'' (doing), or ``করানো'' (causing to do). Most existing tools, built for clearer syntax like English, choke on this morphology. I wanted to build a system that doesn't just translate Bengali to English to understand it, but one that natively \textit{reads} Bengali news with all its complex structural glory.
 
 \section{Problem Statement}
-The core problem addressed in this research is the \textit{lack of a scalable, automated, and domain-adapted pipeline for analyzing the sentiment of formal Bengali news}. 
+The core problem is simple: \textbf{we lack a reliable way to automate the reading of formal Bengali news.}
 
-Existing solutions primarily suffer from the following limitations:
-\begin{itemize}
-    \item \textbf{Reliance on Lexicon-based Approaches:} Traditional methods rely on sentiment dictionaries. These fail to capture context. For instance, the word "জটিল" (complex) can be negative in "সমস্যাটি জটিল" (The problem is complex) but positive in "জটিল শট" (An amazing shot) in a sports context. Lexicon-based models cannot distinguish these nuances.
-    \item \textbf{Loss in Translation:} A common practice is to translate Bengali text to English using Google Translate API and then apply English sentiment models. This "Translation-based method" introduces significant latency and cost. More critically, it leads to a loss of cultural nuance and idiomatic meaning. A phrase like "ঘোড়ার ডিম" (literally: horse's egg) means "nonsense" or "nothing", but a translation system might interpret it literally, missing the negative sentiment entirely.
-    \item \textbf{Inadequacy of Traditional ML:} Shallow Machine Learning models like Support Vector Machines (SVM) and Naive Bayes require extensive manual feature engineering (e.g., n-grams, TF-IDF). These features often fail to capture semantic relationships and long-range dependencies in text.
-    \item \textbf{Domain Mismatch in Pre-trained Models:} While multilingual models like mBERT and XLM-RoBERTa exist, they are pre-trained on diverse corpora (like Wikipedia) that may not align with the specific vocabulary and style of Bengali journalism. Without fine-tuning, their performance on specific downstream tasks remains sub-optimal.
-\end{itemize}
-
-Furthermore, recent works in 2024 have begun to explore transformers \cite{rahman2024enhancing}, but they often lack a comprehensive, open-access, large-scale dataset of full-length news articles, relying instead on headlines or short social media posts. This thesis seeks to solve the problem of analyzing \textit{full-length documents} by effectively utilizing truncation and focused fine-tuning strategies.
-
-\section{Research Objectives}
-The primary goal of this thesis is to build a high-performance, deep-learning-based sentiment analysis system for Bengali news. To achieve this, the following specific objectives have been defined:
-
+When I started looking for solutions, I hit three specific walls:
 \begin{enumerate}
-    \item \textbf{Large-Scale Data Collection:} To design and implement a distributed web scraping pipeline capable of aggregating thousands of articles from diverse sources, ensuring representation from various domains (politics, sports, entertainment, crime).
-    \item \textbf{Dataset Curation and Cleaning:} To process the raw scraped data, addressing issues like Unicode normalization, duplicate removal, and noise reduction. The objective is to create a clean, semi-supervised labeled dataset of over 70,000 news samples, significantly larger than many existing benchmarks.
-    \item \textbf{Transfer Learning Application:} To investigate the efficacy of Transfer Learning by fine-tuning a \texttt{Pre-trained Multilingual DistilBERT} model. The objective is to adapt the model's pre-existing multilingual knowledge to the specific context of Bengali news.
-    \item \textbf{Performance Evaluation:} To rigorously evaluate the model using standard metrics (Accuracy, Precision, Recall, F1-Score) and compare it against baseline models (mBERT, XLM-RoBERTa) to demonstrate the improvement achieved through fine-tuning.
-    \item \textbf{System Development and Deployment:} To deploy the fine-tuned model as a user-friendly web application using Gradio, allowing for real-time inference and batch processing, thereby making the research accessible to end-users without technical expertise.
+    \item \textbf{The Translation Trap:} The most common advice I found was ``Just translate it to English and use VADER.'' This fails miserably. A phrase like ``ঘোড়ার ডিম'' (literally: horse's egg) translates to an absurdity in English, but to a Bengali speaker, it clearly means ``nonsense'' or ``nothing.'' Translation destroys these local idioms.
+    \item \textbf{The Data Desert:} While there are datasets for Bengali, they are mostly scraped from social media comments (Facebook/YouTube). Training a model on YouTube comments to read a formal newspaper editorial is like teaching a child slang and expecting them to understand a legal contract. The grammar, vocabulary, and tone are completely different.
+    \item \textbf{Dictionary Limitations:} Old-school methods relying on lists of ``good'' and ``bad'' words fail when context shifts. The word ``জটিল'' can mean ``complicated'' (negative) in a math problem, but ``awesome'' (positive) in a movie review. Static dictionaries cannot track this shift.
 \end{enumerate}
 
-\section{Scope and Limitations}
-\subsection{Scope}
-This research focuses on:
+I realized that to solve this, I couldn't rely on generic APIs. I needed a dedicated pipeline that could ingest full-length articles, handle the specific dialect of Bengali newspapers (Sadhu/Cholitobhasha mix), and output a reliable sentiment score.
+
+\section{Research Goal and Approach}
+My goal was straightforward but technically demanding: \textbf{create a system that can read a Bengali news article and tell me if it's good news or bad news with >90\% accuracy.}
+
+To get there, I had to break the project into tangible steps:
+\begin{enumerate}
+    \item \textbf{Scraping the Web:} I needed data. Not just a few hundred rows, but thousands. I built a scraper to target five major news outlets (like Prothom Alo and bdnews24), handling their different HTML structures and anti-bot protections.
+    \item \textbf{Cleaning the Mess:} Real-world data is dirty. I spent significant time normalizing Unicode (fixing broken characters) and deduplicating articles that were reposted across different days.
+    \item \textbf{Teaching the Model:} I chose to fine-tune a \texttt{DistilBERT} model. Why DistilBERT? Because it's lighter and faster than the colossal standard BERT, making it possible to run on the limited GPU resources I had available (Google Colab T4). I wanted a solution that was practical, not just theoretical.
+    \item \textbf{Building the Tool:} Finally, a model in a notebook is useless to a journalist. I wrapped the model in a Gradio web interface so that anyone could paste a URL and get an instant analysis.
+\end{enumerate}
+
+\section{Scope and Constraints}
+\subsection{What I Focused On}
+This research strictly looks at **text**. I ignored images or videos embedded in the articles. Also, I focused on **formal Bengali** (the kind used in newspapers). The slang you see on TikTok or in casual Messenger chats is a different beast entirely, and my model isn't trained for that.
+
+\subsection{Where I Hit Limits}
 \begin{itemize}
-    \item \textbf{Text-based Analysis:} The system analyzes only the textual content of news articles. Images and videos are outside the scope of this study.
-    \item \textbf{Formal Bengali:} The dataset and model are tailored for formal definitions of standard Bengali (Cholitobhasha) as used in major newspapers.
-    \item \textbf{Document-level Sentiment:} The system classifies the overall sentiment of an article (Positive, Negative, or Neutral). It does not perform aspect-based sentiment analysis (e.g., identifying sentiment towards specific entities within the text).
+    \item \textbf{Token Limits:} The biggest technical headache was the 512-token limit of BERT models. Long editorials often got cut off. I incorporated a truncation strategy (taking the first 512 tokens), which works for news (where the lead paragraph has the most info) but isn't perfect.
+    \item \textbf{Labeling Reliance:} I couldn't manually read and label 70,000 articles—it would have taken years. I used a "teacher model" (a pre-trained sentiment tool) to generate initial labels, which I then spot-checked. This "semi-supervised" approach saved time but carries the risk that the student model mimics the teacher's mistakes.
 \end{itemize}
 
-\subsection{Limitations}
-Despite the rigorous methodology, this study has certain limitations:
-\begin{itemize}
-    \item \textbf{Dependency on Weak Labels:} Due to the prohibitive cost of manual annotation for 70,000 articles, we utilized a pre-trained model for initial labeling (weak supervision). While effective, this creates a dependency on the teacher model's accuracy and may introduce some noise into the training data.
-    \item \textbf{Input Length Constraint:} The DistilBERT architecture imposes a maximum sequence length of 512 tokens. News articles exceeding this length are truncated, which may result in the loss of crucial information present at the end of long reports.
-    \item \textbf{Sarcasm Detection:} Detecting high-level sarcasm or political satire remains a challenge for the model, as these rely on deep cultural knowledge and external context often missing from the text itself.
-\end{itemize}
+\section{Contributions}
+If this thesis leaves a mark, I hope it is through these three contributions:
+\begin{enumerate}
+    \item **The Dataset:** I am releasing the cleaned dataset of 70,300+ articles. To my knowledge, this is one of the largest open collections of formal Bengali news text available for research.
+    \item **The Fine-Tuned Model:** My fine-tuned DistilBERT model achieved a 93\% accuracy in testing, proving that even "smaller" transformer models can punch above their weight if the data is clean.
+    \item **The "No-Code" Interface:** The accompanying web app means a user doesn't need to know Python to use this tool.
+\end{enumerate}
 
-\section{Thesis Contributions}
-The key contributions of this research are:
+\section{Roadmap}
+The rest of this thesis tracks my journey in building this system:
 \begin{itemize}
-    \item \textbf{Curated Dataset:} Creation of a large-scale, cleaner, and semi-supervised labeled dataset of 70,300+ Bengali news articles, which serves as a valuable resource for future research in this domain.
-    \item \textbf{State-of-the-art Accuracy:} Achieving a 93\% accuracy through fine-tuning, significantly outperforming standard mBERT and lexicon-based baselines for this specific task.
-    \item \textbf{Open Source Tool:} Development and release of an open-source web application with visualization capabilities, bridging the gap between theoretical research and practical application.
-\end{itemize}
-
-\section{Thesis Organization}
-The remainder of this thesis is organized as follows:
-\begin{itemize}
-    \item \textbf{Chapter 2 (Literature Review)} provides a comprehensive review of related work, tracing the history of sentiment analysis from lexicon-based methods to modern Transformer architectures, with a specific focus on Bengali literature.
-    \item \textbf{Chapter 3 (Theoretical Background and Methodology)} details the theoretical foundations of the Transformer model, including the self-attention mechanism, and describes the proposed methodology for data collection and model training.
-    \item \textbf{Chapter 4 (System Implementation)} presents the implementation details, describing the software architecture, the scraping pipeline, and the development of the web interface.
-    \item \textbf{Chapter 5 (Results and Analysis)} discusses the experimental results, provides a comparative analysis with baselines, and offers a visual and error analysis of the model's performance.
-    \item \textbf{Chapter 6 (Conclusion)} concludes the thesis by summarizing the findings and outlining potential directions for future research.
+    \item \textbf{Chapter 2 (Literature Review)}: I dig into the history of sentiment analysis, looking at how we moved from simple dictionary lookups to the modern "Transformer" revolution, and why Bengali research has often lagged behind.
+    \item \textbf{Chapter 3 (Methodology)}: Here I open up the "black box." I explain the mechanics of the Transformer's self-attention (how the model learns context) and detail exactly how I scraped and cleaned the 70,000 articles.
+    \item \textbf{Chapter 4 (Implementation)}: This is the engineering chapter. I walk through the code, the server setup, and the specific libraries (like Hugging Face) that power the analysis.
+    \item \textbf{Chapter 5 (Results)}: The moment of truth. I share the accuracy scores, the confusion matrices, and—most importantly—where the model failed and why.
+    \item \textbf{Chapter 6 (Conclusion)}: I wrap up by discussing what I would do differently next time, specifically looking at handling longer articles and detecting sarcasm.
 \end{itemize}
