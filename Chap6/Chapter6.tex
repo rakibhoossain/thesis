@@ -1,0 +1,46 @@
+\chapter{Conclusion and Future Directions}
+\label{chap:Conclusion}
+
+\section{Summary of Contributions}
+This thesis presented a comprehensive study on \textit{Automated Sentiment Analysis for Bangla News}, addressing the critical gap in NLP resources for low-resource languages. 
+The core contributions of this work are threefold:
+
+\begin{enumerate}
+    \item \textbf{Resource Creation:} We successfully navigated the challenge of data scarcity by constructing a large-scale, semi-supervised dataset of over 70,300 news articles. This dataset, curated from diverse sources like Prothom Alo and BBC Bangla, is significantly larger and more representative of formal Bengali than existing social-media-focused datasets.
+    
+    \item \textbf{Algorithmic Innovation:} By fine-tuning a multilingual DistilBERT model, we demonstrated that transfer learning is a highly effective strategy for Bengali. Our model achieved a state-of-the-art accuracy of \textbf{93.1\%}, outperforming the mBERT baseline by substantial margins. This validates that heavyweight models are not always necessary; a smaller, well-tuned model can achieve superior results with a fraction of the computational and inference cost.
+    
+    \item \textbf{Practical Implementation:} Moving beyond theoretical modeling, we developed and deployed a fully functional web-based analysis tool. This enables real-world stakeholders—journalists, social scientists, and policymakers—to instantly gauge public sentiment trends without needing to write a single line of code.
+\end{enumerate}
+
+\section{Research Limitations}
+While the proposed system demonstrates high performance, it is not without limitations. A transparent acknowledgement of these constraints is vital for future development.
+
+\begin{itemize}
+    \item \textbf{Dependency on Weak Labels:} The use of a pre-trained "Teacher" model for initial labeling was a necessary heuristic due to budget constraints. However, this means our "Student" model is essentially learning to mimic the Teacher, effectively capping its maximum theoretical performance at the Teacher's level. A fully human-annotated "Gold Standard" dataset would provide a more rigorous ground truth.
+    \item \textbf{Contextual Limitations:} The model treats each article as an independent and Identically Distributed (i.i.d.) sample. It does not account for the broader temporal context. For example, a "neutral" update on a "negative" ongoing crisis (like a flood) might be misclassified because the model lacks the historical memory of the event series.
+    \item \textbf{Input Length Truncation:} The DistilBERT architecture limits input sequences to 512 tokens. While this covers the lead paragraph and body of most news reports, deep-dive editorials and long-form investigative journalism are ruthlessly truncated. This potentially results in the loss of concluding sentiments which often appear at the very end of an article.
+\end{itemize}
+
+\section{Future Work}
+The field of Bengali NLP is nascent, and this thesis opens several avenues for future exploration.
+
+\subsection{Aspect-Based Sentiment Analysis (ABSA)}
+Current global sentiment analysis gives a single score for an entire document. However, a news article might be positive about the \textit{economy} but negative about \textit{political stability}. Future work should focus on ABSA to identify sentiment towards specific entities (Aspects).
+\textit{Example:} In the sentence "The government's plan is good but the execution is poor", ABSA would identify:
+\begin{itemize}
+    \item Aspect: Plan $\rightarrow$ Positive
+    \item Aspect: Execution $\rightarrow$ Negative
+\end{itemize}
+
+\subsection{Long-Document Transformers}
+To address the truncation issue, we propose experimenting with sparse-attention architectures like \textbf{Longformer} or \textbf{BigBird}. These models can process sequences of up to 4,096 tokens, allowing for the analysis of entire editorials without information loss.
+
+\subsection{Multimodal Analysis}
+Modern news is multimedia. Often, the text of an article is neutral, but the accompanying image (e.g., a burning building or a smiling diplomat) carries the true emotional weight. A Multimodal Transformer that fuses textual embeddings with visual embeddings (from models like ViT) could provide a holistic understanding of the news.
+
+\subsection{Explainable AI (XAI)}
+To increase trust in the system, we must open the "black box" of the Deep Learning model. Future versions should incorporate XAI techniques like \textbf{SHAP} (SHapley Additive exPlanations) or \textbf{LIME}. These would visualize exactly which words (e.g., highlighting "corruption" in red for negative) contributed most to the model's decision, allowing human verifiers to debug the model's logic.
+
+\section{Closing Remarks}
+Language is the primary vessel of human thought, and news is the primary record of human history. As Bengali enters the digital age, tools that can understand and analyze this vast ocean of text are not just technological novelties but essential instruments for societal self-reflection. This thesis is a step towards that future.

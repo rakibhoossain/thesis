@@ -1,0 +1,114 @@
+\chapter{Literature Review and Theoretical Background}
+\label{chap:LitReview}
+
+\section{Introduction}
+This chapter provides the theoretical foundation necessary to understand the proposed sentiment analysis system. We begin by tracing the historical evolution of sentiment analysis, from early rule-based systems to the modern era of Deep Learning. We then provide an in-depth mathematical explanation of the Transformer architecture, which forms the backbone of our model. Finally, we critically review the state-of-the-art research in Bengali sentiment analysis, highlighting the specific gaps this thesis aims to address.
+
+\section{Evolution of Sentiment Analysis}
+The field of sentiment analysis has undergone three distinct evolutionary phases: the Lexicon-based era, the Statistical Machine Learning era, and the current Deep Learning era.
+
+\subsection{Lexicon-Based Approaches}
+Early work in determining sentiment polarity was largely unsupervised and relied on sentiment lexicons. A lexicon is a dictionary where words are associated with a sentiment score (e.g., +1 for positive, -1 for negative).
+\begin{itemize}
+    \item \textbf{Dictionary-based Methods:} Researchers would start with a small seed list of adjectives and expand it using synonyms and antonyms from a thesaurus like WordNet. Hutto and Gilbert \cite{hutto2014vader} introduced VADER, a rule-based model popular for social media text.
+    \item \textbf{Limitations:} These methods suffer from a lack of context awareness. For example, "The movie was unpredictable" could be positive for a thriller but negative for a car handling review. Furthermore, in Bengali, researchers often created dictionaries by translating English lexicons, which fails to capture language-specific idioms (e.g., "মাথামুন্ডু" literally means "head-head" but implies "nonsense").
+    \item \textbf{Negation Handling:} A major failure point is negation. A simple bag-of-words model usually treats "I do not like this" as positive due to the word "like", necessitating complex rules to handle "not".
+\end{itemize}
+
+\subsection{Statistical Machine Learning Era}
+To overcome the rigidity of rules, researchers turned to supervised statistical learning. This treated sentiment analysis as a standard text classification problem.
+\begin{itemize}
+    \item \textbf{Algorithms:} Support Vector Machines (SVM), Naive Bayes (NB), and Maximum Entropy (MaxEnt) became the standard. Pang et al. (2002) famously showed that ML classifiers outperformed human-curated baselines.
+    \item \textbf{Feature Engineering:} Success depended heavily on manual feature extraction:
+        \begin{itemize}
+            \item \textit{N-grams:} Using sequences of words (bi-grams, tri-grams) to capture local context.
+            \item \textit{TF-IDF:} Weighing terms to downplay common stopwords and highlight discriminative words.
+        \end{itemize}
+    \item \textbf{Limitations for Bengali:} Islam et al. \cite{islam2020bangla} applied these methods to Bengali news headlines. However, due to Bengali's high inflection, the vocabulary size explodes (curse of dimensionality), leading to sparse data matrices and poor generalization.
+\end{itemize}
+
+\subsection{Deep Learning and Word Embeddings}
+Deep Learning removed the need for manual feature engineering. Models like Recurrent Neural Networks (RNNs) and Long Short-Term Memory (LSTM) networks processes text as a sequence, maintaining a hidden state that theoretically captures the history of the entire sentence.
+\begin{itemize}
+    \item \textbf{Word2Vec and GloVe:} Representing words as dense vectors where semantically similar words are close in vector space allowed models to understand that "good" and "great" are similar.
+    \item \textbf{Limitations of RNNs:} While LSTMs solved the vanishing gradient problem to some extent, they are inherently sequential ($O(N)$ time complexity). This precludes parallelization, making training on massive datasets slow. Furthermore, they struggle with reliable long-range dependencies (e.g., relating the first word of a paragraph to the last).
+\end{itemize}
+
+\section{The Transformer Revolution}
+The introduction of the Transformer architecture by Vaswani et al. \cite{vaswani2017attention} in the seminal paper "Attention is All You Need" marked a paradigm shift in NLP. Unlike RNNs, Transformers process the entire sequence of input simultaneously (parallelization), relying entirely on an attention mechanism to draw global dependencies between input and output.
+
+\subsection{Self-Attention Mechanism}
+The core innovation is ``Self-Attention'', which allows the model to weigh the importance of different words in a sentence relative to a specific word.
+Mathematically, for an input embedding matrix $X$, we learn three weight matrices $W^Q, W^K, W^V$ to produce three projections: Query ($Q$), Key ($K$), and Value ($V$).
+\begin{equation}
+    Q = XW^Q, \quad K = XW^K, \quad V = XW^V
+\end{equation}
+
+The attention score is calculated by the scaled dot-product of queries and keys:
+\begin{equation}
+    \text{Attention}(Q, K, V) = \text{softmax}\left(\frac{QK^T}{\sqrt{d_k}}\right)V
+\end{equation}
+
+Where:
+\begin{itemize}
+    \item The dot product $QK^T$ measures similarity between a query (word seeking context) and a key (word offering context).
+    \item Division by $\sqrt{d_k}$ (dimension of keys) prevents the dot products from growing too large, which would push the softmax function into regions with extremely small gradients.
+    \item The softmax normalizes scores to a probability distribution summing to 1.
+    \item Multiplying by $V$ creates a weighted sum of the values, highlighting relevant information.
+\end{itemize}
+
+\subsection{Multi-Head Attention}
+To capture different types of relationships (e.g., syntactic vs. semantic), the Transformer runs multiple self-attention mechanisms in parallel, called "heads".
+\begin{equation}
+    \text{MultiHead}(Q, K, V) = \text{Concat}(\text{head}_1, ..., \text{head}_h)W^O
+\end{equation}
+where $\text{head}_i = \text{Attention}(QW_i^Q, KW_i^K, VW_i^V)$. This allows the model to jointly attend to information from different representation subspaces at different positions.
+
+\subsection{Positional Encoding}
+Since the Transformer contains no recurrence and no convolution, it has no inherent sense of order/sequence. To address this, "Positional Encodings" are added to the input embeddings. These are calculated using sine and cosine functions of different frequencies:
+\begin{equation}
+    PE_{(pos, 2i)} = \sin(pos / 10000^{2i/d_{model}})
+\end{equation}
+\begin{equation}
+    PE_{(pos, 2i+1)} = \cos(pos / 10000^{2i/d_{model}})
+\end{equation}
+This allows the model to learn relative positions, crucial for understanding sentence structure (e.g., distinguishing "Dog bites Man" from "Man bites Dog").
+
+\section{Masked Language Models: BERT and DistilBERT}
+\subsection{BERT (Bidirectional Encoder Representations from Transformers)}
+BERT \cite{devlin2018bert} utilizes the Encoder stack of the Transformer. It introduced the concept of contextual pre-training using two unsupervised tasks:
+\begin{enumerate}
+    \item \textbf{Masked Language Modeling (MLM):} Randomly masking 15\% of input tokens and asking the model to predict the missing word based on context. This forces the model to learn bidirectional context.
+    \item \textbf{Next Sentence Prediction (NSP):} Predicting if Sentence B logically follows Sentence A, helping the model understand discourse relationships.
+\end{enumerate}
+
+\subsection{DistilBERT (Distilled BERT)}
+While BERT achieved state-of-the-art results, it is computationally expensive (110M params for Base). Sanh et al. \cite{sanh2019distilbert} introduced DistilBERT, which applies \textit{Knowledge Distillation}. A smaller student model (DistilBERT) is trained to mimic the soft-target probabilities of the larger teacher model (BERT).
+\begin{equation}
+    L_{distill} = \sum p(\text{teacher}) \cdot \log p(\text{student})
+\end{equation}
+DistilBERT retains 97\% of BERT's performance while being 40\% smaller and 60\% faster, making it ideal for deployment in resource-constrained environments like ours.
+
+\section{Related Work in Bengali Sentiment Analysis (2020-2025)}
+Recent years have seen a surge in NLP research for Bengali, though significant gaps remain.
+
+\subsection{Early Machine Learning Approaches}
+Hassan et al. (2016) used SVM and Random Forests on a small dataset of Bengali movie reviews. They achieved 80\% accuracy but relied heavily on unigrams and handcrafted negation rules.
+Das and Bandyopadhyay (2020) focused on social media comments, employing an LSTM network. While they improved over classical ML, their model struggled with the formal language of news editorials.
+
+\subsection{Recent Transformer-based Research (2024-2025)}
+\begin{itemize}
+    \item \textbf{Hybrid Approaches:} Rahman et al. (2024) \cite{rahman2024enhancing} proposed a hybrid model combining VADER-like rules with BanglaBERT. They argued that domain-specific rules could fix Transformer errors. However, their dataset was limited to 5,000 samples.
+    \item \textbf{New Datasets:} Khan et al. (2024) \cite{khan2024bangla} released "BanglaSenti", a dataset of 35,000 sentences. Crucially, this dataset is composed of short sentences from Facebook comments, lacking the complexity of full-length articles.
+    \item \textbf{Contextual Embeddings:} Islam et al. (2024) \cite{islam2024bangdsa} introduced \textit{skipBangla-BERT}, utilizing skip-gram techniques to improve document-level coherence. Their work showed promise but was not released as an open-source tool.
+\end{itemize}
+
+\subsection{Research Gap Analysis}
+Based on the review, we identify the following critical gaps:
+\begin{enumerate}
+    \item \textbf{Dataset Size and Type:} Most existing datasets are small (<10k) and informal (social media). There is no large-scale (>50k) dataset for \textit{formal news articles}.
+    \item \textbf{End-to-End Systems:} Most research focuses on the model architecture but stops short of deploying a usable tool. There is a lack of accessible interfaces for non-technical users (journalists/analysts) to use these models.
+    \item \textbf{Efficiency:} Many proposed models (e.g., XLM-RoBERTa Large) are too heavy for practical inference on standard servers.
+\end{enumerate}
+
+This thesis directly targets these gaps by creating a large-scale news dataset (70k+), fine-tuning a lightweight yet powerful model (DistilBERT), and deploying a full web-based analysis suite.

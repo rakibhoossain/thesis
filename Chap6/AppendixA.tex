@@ -1,0 +1,74 @@
+\chapter{User Manual and Code Listings}
+\label{chap:AppendixA}
+
+\section{User Manual for Web Application}
+The developed system includes a user-friendly web interface built with Gradio. This manual provides step-by-step instructions for using the tool.
+
+\subsection{System Requirements}
+\begin{itemize}
+    \item \textbf{OS:} Windows 10/11, macOS, or Linux.
+    \item \textbf{Browser:} Google Chrome, Firefox, or Safari (Latest versions).
+    \item \textbf{Network:} Active internet connection (if running on a cloud server).
+\end{itemize}
+
+\subsection{Single Text Analysis Mode}
+This mode is designed for analyzing individual news articles or snippets.
+\begin{enumerate}
+    \item Navigate to the "Home" tab (Figure \ref{fig:ui_start}).
+    \item Locate the large text area labeled "Input Bangla News Text".
+    \item Paste the text of the news article. Ensure the text is in Bengali script.
+    \item Click the "Analyze Sentiment" button.
+    \item The system will process the text (approx. 0.5 seconds).
+    \item The result will appear below, showing the Predicted Label (Positive/Negative/Neutral) and a Confidence Bar indicating the model's certainty.
+\end{enumerate}
+
+\subsection{Batch Analysis Mode}
+This mode allows for the bulk processing of datasets.
+\begin{enumerate}
+    \item Switch to the "Batch Analysis" tab.
+    \item Pre-format your data in a CSV file. The file must contain a column named \texttt{text}.
+    \item Drag and drop your CSV file into the upload area.
+    \item The system will automatically parse the file and process the first 100 rows (for demonstration purposes).
+    \item A formatted table will appear showing the original text alongside the predicted sentiment and confidence score.
+\end{enumerate}
+
+\section{Code Listings}
+Below are the core segments of the code used in this research.
+
+\subsection{Dataset Preparation Class}
+This class handles the loading and stratified splitting of the data.
+
+\begin{verbatim}
+class BanglaSentimentFineTuner:
+    def prepare_dataset(self, csv_file):
+        df = pd.read_csv(csv_file)
+        
+        # Label mapping
+        label_map = {"negative": 0, "neutral": 1, "positive": 2}
+        df["label"] = df["sentiment"].map(label_map)
+        
+        # Remove invalid rows
+        df = df.dropna(subset=["label", "text"])
+        
+        # Stratified Split
+        train, test = train_test_split(
+            df, test_size=0.2, stratify=df["label"]
+        )
+        return Dataset.from_pandas(train), Dataset.from_pandas(test)
+\end{verbatim}
+
+\subsection{Training Loop Configuration}
+The hyperparameters used for training DistilBERT.
+
+\begin{verbatim}
+training_args = TrainingArguments(
+    output_dir="models/bangla-newspaper-sentiment",
+    num_train_epochs=5,
+    per_device_train_batch_size=8,
+    learning_rate=2e-5,
+    weight_decay=0.01,
+    warmup_steps=200,
+    load_best_model_at_end=True,
+    metric_for_best_model="f1"
+)
+\end{verbatim}
